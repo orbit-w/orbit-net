@@ -31,7 +31,7 @@ type TcpServer struct {
 	streamHandler func(transport IServerTransport, stream *Stream)
 }
 
-func NewTcpServer(ctx context.Context, _conn net.Conn, ops *ConnOptions) *TcpServer {
+func NewTcpServer(ctx context.Context, _conn net.Conn, ops *ConnOption) *TcpServer {
 	if ctx == nil {
 		ctx = context.Background()
 	}

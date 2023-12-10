@@ -8,6 +8,7 @@ import (
 	"github.com/orbit-w/orbit-net/core/stream_transport/metadata"
 	"go.uber.org/atomic"
 	"io"
+	"log"
 	"net"
 	"sync"
 	"time"
@@ -35,11 +36,10 @@ type TcpClient struct {
 	buf           *ControlBuffer
 	sw            *SenderWrapper
 	streams       *Streams
-	ops           *DialOptions
 	dHandle       func(remoteNodeId string)
 }
 
-func NewTcpClient(_ops *DialOptions) IClientTransport {
+func NewTcpClient(_ops DialOption) IClientTransport {
 	ctx, cancel := context.WithCancel(context.Background())
 	buf := new(ControlBuffer)
 	BuildControlBuffer(buf, _ops.MaxIncomingPacket)
@@ -126,11 +126,11 @@ func (tc *TcpClient) CloseStream(streamId int64) {
 	tc.mu.Unlock()
 }
 
-func (tc *TcpClient) DialWithOps(ops *DialOptions) {
+func (tc *TcpClient) DialWithOps(ops DialOption) {
 	go tc.handleDial(ops)
 }
 
-func (tc *TcpClient) handleDial(ops *DialOptions) {
+func (tc *TcpClient) handleDial(_ DialOption) {
 	defer func() {
 		if tc.dHandle != nil {
 			tc.dHandle(tc.remoteNodeId)
@@ -183,7 +183,7 @@ func (tc *TcpClient) sendData(data packet.IPacket) error {
 }
 
 func (tc *TcpClient) handleDisconnected() {
-	if tc.state.CAS(StatusConnected, StatusDisconnected) {
+	if tc.state.CompareAndSwap(StatusConnected, StatusDisconnected) {
 		tc.streams.Close(func(stream *Stream) {
 			stream.OnClose()
 		})
@@ -194,7 +194,7 @@ func (tc *TcpClient) dial() error {
 	conn, err := net.Dial("tcp", tc.remoteAddr)
 	if err != nil {
 		//TODO:
-		fmt.Println("tpc dial failed: ", err.Error())
+		log.Fatalln("tpc dial failed: ", err.Error())
 		return err
 	}
 
@@ -305,7 +305,7 @@ func (tc *TcpClient) handleCleanStream(streamId int64) {
 	}
 }
 
-//优雅的关闭stream
+// 优雅的关闭stream
 func (tc *TcpClient) handleElegantlyClosedStream(streamId int64) {
 	stream, ok := tc.streams.GetAndDel(streamId)
 	if ok {

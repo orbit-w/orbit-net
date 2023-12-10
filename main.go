@@ -1,12 +1,4 @@
-# orbit-net
-
-## stream_transport:
-Streaming mode is a high-level abstraction of the concept of virtual links. The binding relationship between virtual links and physical links is n:1,
-
-The original intention of the design is to reduce signal lock collisions in high concurrency scenarios, and also to reasonably reduce the number of connections and release memory pressure.
-
-## Client
-```go
+package orbit_net
 
 import (
 	"context"
@@ -43,6 +35,3 @@ func StreamTransportClient() {
 	_ = stream.Send(nil)
 	_ = stream.CloseSend()
 }
-
-
-```

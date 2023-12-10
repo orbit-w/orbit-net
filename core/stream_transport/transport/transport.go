@@ -24,7 +24,7 @@ type IClientTransport interface {
 	CloseStream(streamId int64)
 }
 
-type DialOptions struct {
+type DialOption struct {
 	RemoteNodeId      string
 	CurrentNodeId     string
 	RemoteAddr        string
@@ -34,7 +34,7 @@ type DialOptions struct {
 	DisconnectHandler func(nodeId string)
 }
 
-type ConnOptions struct {
+type ConnOption struct {
 	MaxIncomingPacket uint32
 	StreamRecvBufSize int
 	StreamHandler     func(st IServerTransport, s *Stream)

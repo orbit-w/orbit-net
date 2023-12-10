@@ -57,7 +57,7 @@ func (ins *Server) acceptLoop() {
 			}
 		}
 
-		transport.NewTcpServer(ins.ctx, conn, &transport.ConnOptions{
+		transport.NewTcpServer(ins.ctx, conn, &transport.ConnOption{
 			StreamHandler:     ins.handleStream,
 			MaxIncomingPacket: MaxIncomingPacket,
 			StreamRecvBufSize: DefaultStreamRecvBufferSize,
@@ -86,7 +86,7 @@ func parseAndWrapOP(ops ...AcceptorOptions) AcceptorOptions {
 		op = ops[0]
 	}
 	if op.MaxIncomingPacket == 0 {
-		op.MaxIncomingPacket = RpcMaxIncomingPacket
+		op.MaxIncomingPacket = MaxIncomingPacket
 	}
 	return op
 }
