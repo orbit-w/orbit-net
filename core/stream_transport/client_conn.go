@@ -17,9 +17,8 @@ type IClientConn interface {
 	// To ensure resources are not leaked due to the stream returned, one of the following
 	// actions must be performed:
 	//  1. Call Close on the ClientConn.
-	//  2. Call RecvMsg until a non-nil error is returned.
-	//  3. Receive a non-nil, non-io.EOF error from Header or SendMsg.
-	NewStream(ctx context.Context) (*StreamClient, error)
+	//  2. Call Recv until a non-nil transport_err is returned.
+	NewStream(ctx context.Context) (IStreamClient, error)
 
 	// Close tears down the ClientConn and underlying the connection.
 	Close() error
@@ -45,7 +44,7 @@ func DialWithOps(remoteAddr, remoteId string, op ...DialOption) IClientConn {
 	return conn
 }
 
-func (cc *ClientConn) NewStream(ctx context.Context) (*StreamClient, error) {
+func (cc *ClientConn) NewStream(ctx context.Context) (IStreamClient, error) {
 	stream, err := cc.ct.NewStream(ctx, DefaultStreamRecvBufferSize)
 	if err != nil {
 		return nil, err
@@ -59,8 +58,10 @@ func (cc *ClientConn) NewStream(ctx context.Context) (*StreamClient, error) {
 }
 
 func (cc *ClientConn) Close() error {
-	atomic.StoreInt32(&cc.state, CC_Done)
-	return cc.ct.Close("")
+	if atomic.CompareAndSwapInt32(&cc.state, CC_Running, CC_Done) {
+		return cc.ct.Close("")
+	}
+	return nil
 }
 
 func parseOp(remoteAddr, remoteId string, ops ...DialOption) transport.DialOption {
