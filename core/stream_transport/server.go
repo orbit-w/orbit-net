@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/orbit-w/orbit-net/core/stream_transport/transport"
 	"net"
+	"runtime/debug"
 	"sync"
 	"time"
 )
@@ -35,6 +36,7 @@ func (ins *Server) Serve(listener net.Listener, _handle func(stream IStreamServe
 	op := parseAndWrapOP(ops...)
 	transport.NewBodyPool(op.MaxIncomingPacket)
 	ctx, cancel := context.WithCancel(context.Background())
+	ins.rw = sync.RWMutex{}
 	ins.host = ""
 	ins.isGzip = op.IsGzip
 	ins.ctx = ctx
@@ -75,7 +77,16 @@ func (ins *Server) handleStream(ts transport.IServerTransport, stream *transport
 		stream.Close()
 	}()
 
-	if appErr := ins.handle(serverStream); appErr != nil {
+	ins.exec(serverStream)
+}
+
+func (ins *Server) exec(stream *ServerStream) {
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+		}
+	}()
+	if appErr := ins.handle(stream); appErr != nil {
 		//TODO:
 	}
 }

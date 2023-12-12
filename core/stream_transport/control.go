@@ -1,6 +1,9 @@
 package stream_transport
 
-import "sync/atomic"
+import (
+	err "github.com/orbit-w/orbit-net/core/stream_transport/transport_err"
+	"sync/atomic"
+)
 
 /*
    @Author: orbit-w
@@ -23,7 +26,7 @@ func (wq *WriteQuota) Get(sz int32) error {
 		case <-wq.ch:
 			continue
 		case <-wq.done:
-			return ErrStreamQuotaEmpty
+			return err.ErrStreamQuotaEmpty
 		}
 	}
 }
