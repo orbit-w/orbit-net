@@ -6,6 +6,7 @@ import (
 	"github.com/orbit-w/golib/bases/misc/number_utils"
 	"github.com/orbit-w/golib/bases/packet"
 	"github.com/orbit-w/orbit-net/core/stream_transport/metadata"
+	"github.com/orbit-w/orbit-net/core/stream_transport/transport_err"
 	"go.uber.org/atomic"
 	"io"
 	"log"
@@ -68,12 +69,11 @@ func (tc *TcpClient) Write(s *Stream, data packet.IPacket, isLast bool) error {
 	switch {
 	case isLast:
 		if !s.compareAndSwapState(StreamActive, StreamWriteDone) {
-			return ErrStreamDone
+			return transport_err.ErrStreamDone
 		}
 	case s.getState() != StreamActive:
-		return ErrStreamDone
+		return transport_err.ErrStreamDone
 	}
-
 	frame := Frame{
 		Type:     FrameRaw,
 		StreamId: s.Id(),
@@ -87,7 +87,9 @@ func (tc *TcpClient) Write(s *Stream, data packet.IPacket, isLast bool) error {
 }
 
 func (tc *TcpClient) Close(reason string) error {
-	_ = tc.conn.Close()
+	if tc.conn != nil {
+		_ = tc.conn.Close()
+	}
 	return nil
 }
 
@@ -109,11 +111,11 @@ func (tc *TcpClient) NewStream(ctx context.Context, initialSize int) (*Stream, e
 	tc.mu.Lock()
 	defer tc.mu.Unlock()
 	if tc.state.Load() == StatusDisconnected {
-		return nil, ErrCancel
+		return nil, transport_err.ErrCancel
 	}
 
 	if err = tc.buf.Set(fp); err != nil {
-		return nil, NewStreamBufSetErr(err)
+		return nil, transport_err.NewStreamBufSetErr(err)
 	}
 
 	tc.streams.Reg(streamId, stream)
@@ -139,13 +141,21 @@ func (tc *TcpClient) handleDial(_ DialOption) {
 	}()
 
 	task := func() error {
-		if err := tc.dial(); err != nil {
-			return err
-		}
-		return nil
+		return tc.dial()
 	}
 
-	withRetry(task)
+	//When the number of failed connection attempts reaches the upper limit,
+	//the conn state will be set to the 'disconnected' state,
+	//and all virtual streams will be closed.
+	if err := withRetry(task); err != nil {
+		tc.mu.Lock()
+		defer tc.mu.Unlock()
+		tc.state.Store(StatusDisconnected)
+		tc.streams.Close(func(stream *Stream) {
+			stream.OnClose()
+		})
+		return
+	}
 
 	defer tc.handleDisconnected()
 
@@ -185,7 +195,7 @@ func (tc *TcpClient) sendData(data packet.IPacket) error {
 func (tc *TcpClient) handleDisconnected() {
 	if tc.state.CompareAndSwap(StatusConnected, StatusDisconnected) {
 		tc.streams.Close(func(stream *Stream) {
-			stream.OnClose()
+			stream.OnElegantlyClose()
 		})
 	}
 }
@@ -222,7 +232,7 @@ func (tc *TcpClient) reader() {
 		}
 
 		if err != nil {
-			if !(err == io.EOF || IsClosedConnError(err)) {
+			if !(err == io.EOF || transport_err.IsClosedConnError(err)) {
 				fmt.Println(fmt.Errorf("tcp %s disconnected: %s", tc.remoteAddr, err.Error()))
 			}
 		}
@@ -301,7 +311,7 @@ func (tc *TcpClient) handleReplyRaw(in *Frame) {
 func (tc *TcpClient) handleCleanStream(streamId int64) {
 	stream, ok := tc.streams.GetAndDel(streamId)
 	if ok {
-		stream.OnClose()
+		stream.OnElegantlyClose()
 	}
 }
 
@@ -366,19 +376,20 @@ func (tc *TcpClient) ack() {
 }
 
 func (tc *TcpClient) StateCompareAndSwap(old, new uint32) bool {
-	return tc.state.CAS(old, new)
+	return tc.state.CompareAndSwap(old, new)
 }
 
-func withRetry(handle func() error) {
+func withRetry(handle func() error) error {
 	retried := int32(0)
 	for {
 		err := handle()
-		if err != nil {
-			return
+		if err == nil {
+			return nil
 		}
-		time.Sleep(time.Second * time.Duration(1<<retried))
-		if retried < MaxRetried {
-			retried++
+		time.Sleep(time.Millisecond * time.Duration(100<<retried))
+		if retried >= MaxRetried {
+			return transport_err.ErrMaxOfRetry
 		}
+		retried++
 	}
 }

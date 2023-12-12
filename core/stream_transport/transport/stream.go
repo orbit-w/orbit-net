@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"github.com/orbit-w/golib/bases/packet"
+	"github.com/orbit-w/orbit-net/core/stream_transport/transport_err"
 	"io"
 	"sync/atomic"
 )
@@ -55,7 +56,7 @@ func (s *Stream) Read() (packet.IPacket, error) {
 	select {
 	case msg, ok := <-s.recvCh:
 		if !ok {
-			return nil, ErrCancel
+			return nil, transport_err.ErrCancel
 		}
 		if msg.err != nil {
 			return msg.buf, msg.err
@@ -63,7 +64,7 @@ func (s *Stream) Read() (packet.IPacket, error) {
 		s.rb.load()
 		return msg.buf, nil
 	case <-s.ctx.Done():
-		return nil, ErrCancel
+		return nil, transport_err.ErrCancel
 	}
 }
 
@@ -73,7 +74,7 @@ func (s *Stream) GetErr() error {
 
 func (s *Stream) OnClose() {
 	_ = s.rb.put(StreamMsg{
-		err: ErrCancel,
+		err: transport_err.ErrCancel,
 	})
 }
 

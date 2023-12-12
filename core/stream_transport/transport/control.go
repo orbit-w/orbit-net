@@ -2,6 +2,7 @@ package transport
 
 import (
 	"github.com/orbit-w/golib/bases/container/ring_buffer"
+	err "github.com/orbit-w/orbit-net/core/stream_transport/transport_err"
 	"sync"
 )
 
@@ -29,7 +30,7 @@ func NewReceiveBuf(size int) *ReceiveBuf {
 func (rb *ReceiveBuf) OnClose() {
 	rb.mu.Lock()
 	defer rb.mu.Unlock()
-	rb.err = ErrStreamShutdown
+	rb.err = err.ErrStreamShutdown
 	close(rb.c)
 	rb.buf.Contract()
 }
@@ -38,7 +39,7 @@ func (rb *ReceiveBuf) put(r StreamMsg) error {
 	rb.mu.Lock()
 	defer rb.mu.Unlock()
 	if rb.err != nil {
-		return ReceiveBufPutErr(rb.err)
+		return err.ReceiveBufPutErr(rb.err)
 	}
 
 	if r.err != nil {

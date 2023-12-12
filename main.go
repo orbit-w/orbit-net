@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"github.com/orbit-w/orbit-net/core/stream_transport"
-	"github.com/orbit-w/orbit-net/core/stream_transport/transport"
+	"github.com/orbit-w/orbit-net/core/stream_transport/transport_err"
+	"io"
+	"log"
 )
 
 func StreamTransportClient() {
@@ -25,9 +27,12 @@ func StreamTransportClient() {
 		for {
 			_, err := stream.Recv()
 			if err != nil {
-				if errors.Is(err, transport.ErrCancel) {
-					break
+				if errors.Is(err, transport_err.ErrCancel) || errors.Is(err, io.EOF) {
+
+				} else {
+					log.Println("Recv failed: ", err.Error())
 				}
+				break
 			}
 		}
 	}()

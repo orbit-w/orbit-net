@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/orbit-w/golib/bases/packet"
+	"github.com/orbit-w/orbit-net/core/stream_transport/transport_err"
 	"io"
 	"net"
 	"time"
@@ -45,7 +46,7 @@ func (tcd *TcpCodec) BlockDecode(conn net.Conn, header, body []byte) (packet.IPa
 
 	_, err = io.ReadFull(conn, header)
 	if err != nil {
-		if err != io.EOF && !IsClosedConnError(err) {
+		if err != io.EOF && !transport_err.IsClosedConnError(err) {
 			fmt.Println("Receive data head failed: ", err.Error())
 		}
 		return nil, err
@@ -53,12 +54,12 @@ func (tcd *TcpCodec) BlockDecode(conn net.Conn, header, body []byte) (packet.IPa
 
 	size := binary.BigEndian.Uint32(header)
 	if size > tcd.maxIncomingSize {
-		return nil, ExceedMaxIncomingPacket(size)
+		return nil, transport_err.ExceedMaxIncomingPacket(size)
 	}
 
 	body = body[:size]
 	if _, err = io.ReadFull(conn, body); err != nil {
-		return nil, ReadBodyFailed(err)
+		return nil, transport_err.ReadBodyFailed(err)
 	}
 	buf := packet.Writer()
 	buf.Write(body)
@@ -75,7 +76,7 @@ func (tcd *TcpCodec) buildPacket(buf, data packet.IPacket, gzipped bool) {
 
 func (tcd *TcpCodec) checkPacketSize(header []byte) error {
 	if size := binary.BigEndian.Uint32(header); size > tcd.maxIncomingSize {
-		return ExceedMaxIncomingPacket(size)
+		return transport_err.ExceedMaxIncomingPacket(size)
 	}
 	return nil
 }

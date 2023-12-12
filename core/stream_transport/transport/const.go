@@ -22,7 +22,7 @@ const (
 	PingTimeOut    = time.Second * 30
 	AckInterval    = time.Second * 5
 	MaxTransPacket = 1048576
-	MaxRetried     = 3
+	MaxRetried     = 5
 	HeadLen        = 4 //包头字节数
 	ReadTimeout    = time.Second * 60
 	WriteTimeout   = time.Second * 5

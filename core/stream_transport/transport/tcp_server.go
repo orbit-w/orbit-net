@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/orbit-w/golib/bases/packet"
 	"github.com/orbit-w/orbit-net/core/stream_transport/metadata"
+	"github.com/orbit-w/orbit-net/core/stream_transport/transport_err"
 	"io"
 	"net"
 	"time"
@@ -113,13 +114,13 @@ func (ts *TcpServer) HandleLoop() {
 
 	defer func() {
 		ts.activeStreams.Close(func(stream *Stream) {
-			stream.OnClose()
+			stream.OnElegantlyClose()
 		})
 		ts.buf.OnClose()
 		if ts.conn != nil {
 			_ = ts.conn.Close()
 		}
-		if err == io.EOF || IsClosedConnError(err) {
+		if err == io.EOF || transport_err.IsClosedConnError(err) {
 			//连接正常断开
 		} else {
 			fmt.Println(fmt.Errorf("tcp_conn disconnected: %s", err.Error()))
@@ -180,7 +181,7 @@ func (ts *TcpServer) handleRawFrame(in *Frame) {
 	if in.End {
 		stream, ok := ts.activeStreams.GetAndDel(streamId)
 		if ok {
-			stream.OnClose()
+			stream.OnElegantlyClose()
 		}
 
 		ack := ts.framer.Encode(&Frame{
@@ -229,6 +230,6 @@ func (ts *TcpServer) handleStartFrame(in *Frame) {
 func (ts *TcpServer) handleCleanFrame(streamId int64) {
 	stream, ok := ts.activeStreams.GetAndDel(streamId)
 	if ok {
-		stream.OnClose()
+		stream.OnElegantlyClose()
 	}
 }

@@ -3,6 +3,7 @@ package stream_transport
 import (
 	"github.com/orbit-w/golib/bases/packet"
 	"github.com/orbit-w/orbit-net/core/stream_transport/transport"
+	"github.com/orbit-w/orbit-net/core/stream_transport/transport_err"
 )
 
 /*
@@ -36,19 +37,10 @@ func (sc *StreamClient) CloseSend() error {
 	}
 	sc.sentLast = true
 	if err := sc.ct.Write(sc.stream, nil, true); err != nil {
-		if !transport.IsErrRpcDisconnected(err) {
+		if !transport_err.IsErrRpcDisconnected(err) {
 			return err
 		}
 		return nil
 	}
-	return nil
-}
-
-// Close application layer active control call Close()
-func (sc *StreamClient) Close() error {
-	sc.conn.ct.CloseStream(sc.Id)
-	sc.stream.Close()
-	sc.stream = nil
-	sc.conn = nil
 	return nil
 }

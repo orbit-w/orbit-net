@@ -3,6 +3,7 @@ package transport
 import (
 	"github.com/orbit-w/golib/bases/misc/number_utils"
 	"github.com/orbit-w/golib/bases/packet"
+	"github.com/orbit-w/orbit-net/core/stream_transport/transport_err"
 	"sync"
 )
 
@@ -82,7 +83,7 @@ func (ins *ControlBuffer) Set(buf packet.IPacket) error {
 	ins.mu.Lock()
 	if ins.state == TypeStopped {
 		ins.mu.Unlock()
-		return ErrRpcDisconnected
+		return transport_err.ErrRpcDisconnected
 	}
 	var kick bool
 	ins.length++
@@ -101,7 +102,7 @@ func (ins *ControlBuffer) Set(buf packet.IPacket) error {
 	return nil
 }
 
-//TODO: 立即拒绝流输入是否合理？
+// OnClose TODO: Is it reasonable to reject stream input immediately?
 func (ins *ControlBuffer) OnClose() {
 	ins.mu.Lock()
 	defer ins.mu.Unlock()
