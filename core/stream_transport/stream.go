@@ -15,7 +15,7 @@ type IStreamClient interface {
 	Recv() (packet.IPacket, error)
 	Send(data packet.IPacket) error
 	// CloseSend closes the send direction of the stream. It closes the stream
-	// when non-nil error is met. It is also not safe to call CloseSend
+	// when non-nil transport_err is met. It is also not safe to call CloseSend
 	// concurrently with SendMsg.
 	CloseSend() error
 }
