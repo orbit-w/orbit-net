@@ -4,6 +4,7 @@ import (
 	"github.com/orbit-w/golib/bases/misc/number_utils"
 	"github.com/orbit-w/golib/bases/packet"
 	"github.com/orbit-w/orbit-net/core/stream_transport/transport_err"
+	"log"
 	"sync"
 )
 
@@ -20,7 +21,7 @@ type ControlBuffer struct {
 	length          int
 	buffer          packet.IPacket
 	mu              sync.Mutex
-	sw              *SenderWrapper
+	sw1             *SenderWrapper
 
 	ch    chan struct{}
 	close chan struct{}
@@ -87,6 +88,7 @@ func (ins *ControlBuffer) Set(buf packet.IPacket) error {
 	}
 	var kick bool
 	ins.length++
+	log.Println("1111111")
 	ins.buffer.WriteBytes32(buf.Data())
 	if ins.consumerWaiting {
 		kick = true
@@ -132,10 +134,10 @@ FLUSH:
 			w.WriteBytes32(data)
 		}
 
-		for {
-			if err := ins.sw.Send(w); err == nil {
-				break
-			}
+		if err := ins.sw.Send(w); err != nil {
+			log.Println("sw send failed: ", err.Error())
+		} else {
+			log.Println("sw send: ", err.Error())
 		}
 	}
 

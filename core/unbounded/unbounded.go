@@ -1,6 +1,7 @@
 package unbounded
 
 import (
+	"fmt"
 	"github.com/orbit-w/golib/bases/container/ring_buffer"
 	"sync"
 )
@@ -44,7 +45,7 @@ func (ins *Unbounded[V]) Send(msg V) error {
 		ins.mu.Unlock()
 		return ins.err
 	}
-
+	fmt.Println("222222")
 	ins.buffer.Push(msg)
 	var kick bool
 	if ins.wait {

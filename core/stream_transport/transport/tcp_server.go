@@ -49,7 +49,7 @@ func NewTcpServer(ctx context.Context, _conn net.Conn, ops *ConnOption) *TcpServ
 		cancel:        cancel,
 	}
 
-	sw := NewSender(ts.SendData)
+	sw := NewSender(2, ts.SendData)
 	ts.sw = sw
 	ts.buf = NewControlBuffer(ops.MaxIncomingPacket, ts.sw)
 

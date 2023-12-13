@@ -161,7 +161,7 @@ func (tc *TcpClient) handleDial(_ DialOption) {
 
 	tc.state.Store(StatusConnected)
 	tc.lastAck.Store(0)
-	tc.sw = NewSender(tc.SendData)
+	tc.sw = NewSender(1, tc.SendData)
 	tc.buf.Run(tc.sw)
 	go tc.keepalive()
 	<-tc.ctx.Done()

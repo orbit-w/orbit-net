@@ -3,6 +3,8 @@ package transport
 import (
 	"github.com/orbit-w/golib/bases/packet"
 	"github.com/orbit-w/orbit-net/core/unbounded"
+	"log"
+	"runtime/debug"
 )
 
 /*
@@ -20,7 +22,7 @@ type sendParams struct {
 	buf packet.IPacket
 }
 
-func NewSender(sender func(body packet.IPacket) error) *SenderWrapper {
+func NewSender(code int8, sender func(body packet.IPacket) error) *SenderWrapper {
 	ins := &SenderWrapper{
 		sender:  sender,
 		channel: unbounded.New[sendParams](64),
@@ -29,11 +31,12 @@ func NewSender(sender func(body packet.IPacket) error) *SenderWrapper {
 	go func() {
 		defer func() {
 			if x := recover(); x != nil {
-
+				debug.PrintStack()
 			}
 		}()
 
 		ins.channel.Receive(func(msg sendParams) bool {
+			log.Printf("%v recv message", code)
 			_ = ins.sender(msg.buf)
 			return false
 		})
