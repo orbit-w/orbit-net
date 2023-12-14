@@ -228,7 +228,7 @@ func (tc *TcpClient) reader() {
 
 		if err != nil {
 			if !(err == io.EOF || transport_err.IsClosedConnError(err)) {
-				fmt.Println(fmt.Errorf("tcp %s disconnected: %s", tc.remoteAddr, err.Error()))
+				log.Println(fmt.Errorf("tcp %s disconnected: %s", tc.remoteAddr, err.Error()))
 			}
 		}
 	}()
@@ -264,7 +264,7 @@ func (tc *TcpClient) recv(header []byte, body []byte) (packet.IPacket, error) {
 func (tc *TcpClient) decodeRspAndDispatch(data packet.IPacket) error {
 	frame, err := tc.framer.Decode(data)
 	if err != nil {
-		fmt.Println("[TcpClient] [func: decodeRspAndDispatch] failed: ", err.Error())
+		log.Println("[TcpClient] [func: decodeRspAndDispatch] failed: ", err.Error())
 		return err
 	}
 

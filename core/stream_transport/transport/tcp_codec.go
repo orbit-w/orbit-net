@@ -2,10 +2,10 @@ package transport
 
 import (
 	"encoding/binary"
-	"fmt"
 	"github.com/orbit-w/golib/bases/packet"
 	"github.com/orbit-w/orbit-net/core/stream_transport/transport_err"
 	"io"
+	"log"
 	"net"
 	"time"
 )
@@ -51,7 +51,7 @@ func (tcd TcpCodec) BlockDecode(conn net.Conn, header, body []byte) (packet.IPac
 	_, err = io.ReadFull(conn, header)
 	if err != nil {
 		if err != io.EOF && !transport_err.IsClosedConnError(err) {
-			fmt.Println("[TcpCodec] [func:BlockDecode] receive data head failed: ", err.Error())
+			log.Println("[TcpCodec] [func:BlockDecode] receive data head failed: ", err.Error())
 		}
 		return nil, err
 	}

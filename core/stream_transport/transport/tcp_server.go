@@ -216,7 +216,7 @@ func (ts *TcpServer) handleStartFrame(in *Frame) {
 	md := metadata.MD{}
 	if err := metadata.Unmarshal(in.Data, &md); err != nil {
 		//TODO: 敏感信息解析失败后处理？
-		fmt.Println("[TcpServer] [func:handleStartFrame] metadata unmarshal failed: ", err.Error())
+		log.Println("[TcpServer] [func:handleStartFrame] metadata unmarshal failed: ", err.Error())
 	}
 
 	in.Data.Return()
