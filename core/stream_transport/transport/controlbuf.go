@@ -135,7 +135,7 @@ FLUSH:
 			w.WriteBytes32(data)
 		}
 
-		ins.sw.Send(w)
+		_ = ins.sw.Send(w)
 	}
 
 	ins.consumerWaiting = true

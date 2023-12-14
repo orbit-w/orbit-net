@@ -3,8 +3,7 @@ module github.com/orbit-w/orbit-net
 go 1.21.5
 
 require (
-	github.com/alphadose/zenq/v2 v2.8.2
-	github.com/orbit-w/golib v1.0.7-0.20231214143943-1b77f3f0866a
+	github.com/orbit-w/golib v1.0.7
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/atomic v1.11.0
 )
