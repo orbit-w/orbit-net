@@ -63,8 +63,8 @@ func (ins *Unbounded[V]) Receive(consumer func(msg V) bool) {
 	defer func() {
 		// safety return
 		ins.flushAll(consumer)
-		ins.buffer.Discard()
-		ins.out.Discard()
+		ins.buffer.Reset()
+		ins.out.Reset()
 		close(ins.ch)
 	}()
 
@@ -80,7 +80,7 @@ func (ins *Unbounded[V]) Close() {
 func (ins *Unbounded[V]) receive(consumer func(msg V) bool) {
 LOOP:
 	ins.mu.Lock()
-	for ins.buffer.Len() > 0 {
+	for ins.buffer.Length() > 0 {
 		msg, _ := ins.buffer.Pop()
 		ins.out.Push(msg)
 	}
@@ -120,7 +120,7 @@ func (ins *Unbounded[V]) kick() {
 }
 
 func (ins *Unbounded[V]) consume(consumer func(msg V) bool) (exit bool) {
-	for ins.out.Len() > 0 {
+	for ins.out.Length() > 0 {
 		msg, _ := ins.out.Pop()
 		if r := consumer(msg); r {
 			exit = r
