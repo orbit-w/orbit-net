@@ -21,7 +21,7 @@ type ControlBuffer struct {
 	length          int
 	buffer          packet.IPacket
 	mu              sync.Mutex
-	sw1             *SenderWrapper
+	sw              *SenderWrapper
 
 	ch    chan struct{}
 	close chan struct{}
@@ -88,8 +88,8 @@ func (ins *ControlBuffer) Set(buf packet.IPacket) error {
 	}
 	var kick bool
 	ins.length++
-	log.Println("1111111")
-	ins.buffer.WriteBytes32(buf.Data())
+	d := buf.Data()
+	ins.buffer.WriteBytes32(d)
 	if ins.consumerWaiting {
 		kick = true
 		ins.consumerWaiting = false
@@ -129,15 +129,15 @@ FLUSH:
 			if uint32(w.Len())+uint32(length)+4 > ins.max {
 				break
 			}
-			ins.length++
+			ins.length--
 			data, _ := ins.buffer.ReadBytes32()
 			w.WriteBytes32(data)
 		}
 
-		if err := ins.sw.Send(w); err != nil {
-			log.Println("sw send failed: ", err.Error())
+		if ins.sw.Send(w) {
+			log.Println("sw send failed")
 		} else {
-			log.Println("sw send: ", err.Error())
+			log.Println("sw send ...")
 		}
 	}
 

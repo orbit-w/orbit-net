@@ -120,10 +120,12 @@ func (ts *TcpServer) HandleLoop() {
 		if ts.conn != nil {
 			_ = ts.conn.Close()
 		}
-		if err == io.EOF || transport_err.IsClosedConnError(err) {
-			//连接正常断开
-		} else {
-			fmt.Println(fmt.Errorf("tcp_conn disconnected: %s", err.Error()))
+		if err != nil {
+			if err == io.EOF || transport_err.IsClosedConnError(err) {
+				//连接正常断开
+			} else {
+				fmt.Println(fmt.Errorf("tcp_conn disconnected: %s", err.Error()))
+			}
 		}
 	}()
 
@@ -147,7 +149,7 @@ func (ts *TcpServer) HandleLoop() {
 func (ts *TcpServer) OnData(data packet.IPacket) error {
 	defer data.Return()
 	for len(data.Remain()) > 0 {
-		if bytes, err := data.ReadBytes32(); err != nil {
+		if bytes, err := data.ReadBytes32(); err == nil {
 			reader := packet.Reader(bytes)
 			frame, err := ts.framer.Decode(reader)
 			if err != nil {
@@ -170,6 +172,7 @@ func (ts *TcpServer) HandleData(in *Frame) {
 		_ = ts.buf.Set(ack)
 		ack.Return()
 	case FrameStartStream:
+		fmt.Println("11")
 		ts.handleStartFrame(in)
 	case FrameCleanStream:
 		ts.handleCleanFrame(in.StreamId)

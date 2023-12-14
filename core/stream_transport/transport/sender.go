@@ -1,8 +1,8 @@
 package transport
 
 import (
+	"github.com/alphadose/zenq/v2"
 	"github.com/orbit-w/golib/bases/packet"
-	"github.com/orbit-w/orbit-net/core/unbounded"
 	"log"
 	"runtime/debug"
 )
@@ -14,8 +14,8 @@ import (
 */
 
 type SenderWrapper struct {
-	sender  func(body packet.IPacket) error
-	channel IUnboundedChan[sendParams]
+	sender func(body packet.IPacket) error
+	zq     *zenq.ZenQ[sendParams]
 }
 
 type sendParams struct {
@@ -24,8 +24,8 @@ type sendParams struct {
 
 func NewSender(code int8, sender func(body packet.IPacket) error) *SenderWrapper {
 	ins := &SenderWrapper{
-		sender:  sender,
-		channel: unbounded.New[sendParams](64),
+		sender: sender,
+		zq:     zenq.New[sendParams](2048),
 	}
 
 	go func() {
@@ -35,20 +35,25 @@ func NewSender(code int8, sender func(body packet.IPacket) error) *SenderWrapper
 			}
 		}()
 
-		ins.channel.Receive(func(msg sendParams) bool {
-			log.Printf("%v recv message", code)
+		for {
+			msg, open := ins.zq.Read()
+			if !open {
+				log.Println("sender break")
+				break
+			}
 			_ = ins.sender(msg.buf)
-			return false
-		})
+			log.Printf("%v recv message", code)
+		}
 	}()
 
 	return ins
 }
 
-func (ins *SenderWrapper) Send(data packet.IPacket) error {
-	return ins.channel.Send(sendParams{data})
+func (ins *SenderWrapper) Send(data packet.IPacket) (writeClose bool) {
+	writeClose = ins.zq.Write(sendParams{data})
+	return
 }
 
 func (ins *SenderWrapper) OnClose() {
-	ins.channel.Close()
+	ins.zq.Close()
 }
