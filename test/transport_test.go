@@ -30,8 +30,10 @@ func Test_Transport(t *testing.T) {
 				log.Println("conn read stream failed: ", err.Error())
 				break
 			}
-			log.Println(1111)
-			log.Println(in.Data()[0])
+			log.Println("receive message from client: ", in.Data()[0])
+			if err = stream.Send(in); err != nil {
+				log.Println("server response failed: ", err.Error())
+			}
 		}
 		return nil
 	})
@@ -45,21 +47,20 @@ func Test_Transport(t *testing.T) {
 
 	ctx := context.Background()
 	stream, err := conn.NewStream(ctx)
-	if err != nil {
-		panic(err.Error())
-	}
+	assert.NoError(t, err)
 
 	go func() {
 		for {
-			_, err := stream.Recv()
+			in, err := stream.Recv()
 			if err != nil {
 				if errors.Is(err, transport_err.ErrCancel) || errors.Is(err, io.EOF) {
-
+					log.Println("Recv failed: ", err.Error())
 				} else {
 					log.Println("Recv failed: ", err.Error())
 				}
 				break
 			}
+			log.Println("recv response: ", in.Data()[0])
 		}
 	}()
 
@@ -67,6 +68,7 @@ func Test_Transport(t *testing.T) {
 	w.Write([]byte{1})
 	_ = stream.Send(w)
 
-	time.Sleep(time.Minute)
+	time.Sleep(time.Second * 10)
 	_ = stream.CloseSend()
+	time.Sleep(time.Second * 5)
 }

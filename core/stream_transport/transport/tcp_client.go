@@ -32,7 +32,7 @@ type TcpClient struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 	framer        *Framer
-	codec         *TcpCodec
+	codec         TcpCodec
 	conn          net.Conn
 	buf           *ControlBuffer
 	sw            *SenderWrapper
@@ -117,7 +117,6 @@ func (tc *TcpClient) NewStream(ctx context.Context, initialSize int) (*Stream, e
 	if err = tc.buf.Set(fp); err != nil {
 		return nil, transport_err.NewStreamBufSetErr(err)
 	}
-
 	tc.streams.Reg(streamId, stream)
 	return stream, nil
 }
@@ -161,7 +160,7 @@ func (tc *TcpClient) handleDial(_ DialOption) {
 
 	tc.state.Store(StatusConnected)
 	tc.lastAck.Store(0)
-	tc.sw = NewSender(1, tc.SendData)
+	tc.sw = NewSender(tc.SendData)
 	tc.buf.Run(tc.sw)
 	go tc.keepalive()
 	<-tc.ctx.Done()
@@ -170,19 +169,16 @@ func (tc *TcpClient) handleDial(_ DialOption) {
 func (tc *TcpClient) SendData(data packet.IPacket) error {
 	err := tc.sendData(data)
 	if err != nil {
+		log.Println("[TcpClient] [func: SendData] exec failed: ", err.Error())
 		if tc.conn != nil {
 			_ = tc.conn.Close()
 		}
 	}
-	data.Return()
 	return err
 }
 
 func (tc *TcpClient) sendData(data packet.IPacket) error {
-	body := packet.Writer()
-	body.WriteUint32(uint32(data.Len()))
-	body.Write(data.Remain())
-
+	body := tc.codec.EncodeBody(data)
 	if err := tc.conn.SetWriteDeadline(time.Now().Add(WriteTimeout)); err != nil {
 		body.Return()
 		return err
@@ -203,8 +199,7 @@ func (tc *TcpClient) handleDisconnected() {
 func (tc *TcpClient) dial() error {
 	conn, err := net.Dial("tcp", tc.remoteAddr)
 	if err != nil {
-		//TODO:
-		log.Fatalln("tpc dial failed: ", err.Error())
+		log.Println("[TcpClient] dial failed: ", err.Error())
 		return err
 	}
 
@@ -263,19 +258,13 @@ func (tc *TcpClient) recv(header []byte, body []byte) (packet.IPacket, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	//TODO: 目前不支持压缩？
-	_, err = in.ReadBool()
-	if err != nil {
-		return nil, err
-	}
 	return in, err
 }
 
 func (tc *TcpClient) decodeRspAndDispatch(data packet.IPacket) error {
 	frame, err := tc.framer.Decode(data)
 	if err != nil {
-		fmt.Println("[TcpClient] decodeRspAndDispatch failed: ", err.Error())
+		fmt.Println("[TcpClient] [func: decodeRspAndDispatch] failed: ", err.Error())
 		return err
 	}
 
@@ -348,7 +337,7 @@ func (tc *TcpClient) keepalive() {
 			}
 
 			if outstandingPing && timeout <= 0 {
-				fmt.Println("[TcpClient] no heartbeat: ", tc.remoteAddr)
+				log.Println("[TcpClient] no heartbeat: ", tc.remoteAddr)
 				_ = tc.conn.Close()
 				return
 			}

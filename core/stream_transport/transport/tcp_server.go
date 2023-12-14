@@ -7,7 +7,9 @@ import (
 	"github.com/orbit-w/orbit-net/core/stream_transport/metadata"
 	"github.com/orbit-w/orbit-net/core/stream_transport/transport_err"
 	"io"
+	"log"
 	"net"
+	"runtime/debug"
 	"time"
 )
 
@@ -22,7 +24,7 @@ type TcpServer struct {
 	streamRBSize  int
 	conn          net.Conn
 	framer        *Framer
-	codec         *TcpCodec
+	codec         TcpCodec
 	sw            *SenderWrapper
 	buf           *ControlBuffer
 	activeStreams *Streams
@@ -49,7 +51,7 @@ func NewTcpServer(ctx context.Context, _conn net.Conn, ops *ConnOption) *TcpServ
 		cancel:        cancel,
 	}
 
-	sw := NewSender(2, ts.SendData)
+	sw := NewSender(ts.SendData)
 	ts.sw = sw
 	ts.buf = NewControlBuffer(ops.MaxIncomingPacket, ts.sw)
 
@@ -71,15 +73,12 @@ func (ts *TcpServer) Write(stream *Stream, data packet.IPacket) (err error) {
 // SendData 隐事调用 body.Return
 // 消息编码协议: size<int32> | gzipped<bool> | body<bytes>
 func (ts *TcpServer) SendData(body packet.IPacket) error {
-	pack, err := ts.codec.EncodeBody(body)
-	if err != nil {
-		return err
-	}
+	pack := ts.codec.EncodeBody(body)
 	defer pack.Return()
-	if err = ts.conn.SetWriteDeadline(time.Now().Add(WriteTimeout)); err != nil {
+	if err := ts.conn.SetWriteDeadline(time.Now().Add(WriteTimeout)); err != nil {
 		return err
 	}
-	_, err = ts.conn.Write(pack.Data())
+	_, err := ts.conn.Write(pack.Data())
 	return err
 }
 
@@ -95,7 +94,7 @@ func (ts *TcpServer) CloseStream(streamId int64) {
 	}
 }
 
-func (ts *TcpServer) Close(reason string) error {
+func (ts *TcpServer) Close(_ string) error {
 	return ts.conn.Close()
 }
 
@@ -113,8 +112,11 @@ func (ts *TcpServer) HandleLoop() {
 	)
 
 	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+		}
 		ts.activeStreams.Close(func(stream *Stream) {
-			stream.OnElegantlyClose()
+			stream.OnClose()
 		})
 		ts.buf.OnClose()
 		if ts.conn != nil {
@@ -124,7 +126,7 @@ func (ts *TcpServer) HandleLoop() {
 			if err == io.EOF || transport_err.IsClosedConnError(err) {
 				//连接正常断开
 			} else {
-				fmt.Println(fmt.Errorf("tcp_conn disconnected: %s", err.Error()))
+				log.Println(fmt.Errorf("[TcpServer] tcp_conn disconnected: %s", err.Error()))
 			}
 		}
 	}()
@@ -172,7 +174,6 @@ func (ts *TcpServer) HandleData(in *Frame) {
 		_ = ts.buf.Set(ack)
 		ack.Return()
 	case FrameStartStream:
-		fmt.Println("11")
 		ts.handleStartFrame(in)
 	case FrameCleanStream:
 		ts.handleCleanFrame(in.StreamId)
@@ -215,7 +216,7 @@ func (ts *TcpServer) handleStartFrame(in *Frame) {
 	md := metadata.MD{}
 	if err := metadata.Unmarshal(in.Data, &md); err != nil {
 		//TODO: 敏感信息解析失败后处理？
-		fmt.Println("metadata unmarshal failed: ", err.Error())
+		fmt.Println("[TcpServer] [func:handleStartFrame] metadata unmarshal failed: ", err.Error())
 	}
 
 	in.Data.Return()

@@ -22,7 +22,7 @@ type sendParams struct {
 	buf packet.IPacket
 }
 
-func NewSender(code int8, sender func(body packet.IPacket) error) *SenderWrapper {
+func NewSender(sender func(body packet.IPacket) error) *SenderWrapper {
 	ins := &SenderWrapper{
 		sender: sender,
 		zq:     zenq.New[sendParams](2048),
@@ -42,7 +42,6 @@ func NewSender(code int8, sender func(body packet.IPacket) error) *SenderWrapper
 				break
 			}
 			_ = ins.sender(msg.buf)
-			log.Printf("%v recv message", code)
 		}
 	}()
 

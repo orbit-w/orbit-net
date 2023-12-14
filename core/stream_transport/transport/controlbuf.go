@@ -4,7 +4,6 @@ import (
 	"github.com/orbit-w/golib/bases/misc/number_utils"
 	"github.com/orbit-w/golib/bases/packet"
 	"github.com/orbit-w/orbit-net/core/stream_transport/transport_err"
-	"log"
 	"sync"
 )
 
@@ -46,7 +45,7 @@ func NewControlBuffer(max uint32, _sw *SenderWrapper) *ControlBuffer {
 func BuildControlBuffer(buf *ControlBuffer, max uint32) {
 	buf.max = max
 	buf.ch = make(chan struct{}, 1)
-	buf.buffer = packet.NewWithInitialSize(2048)
+	buf.buffer = packet.New()
 	buf.mu = sync.Mutex{}
 }
 
@@ -67,10 +66,12 @@ func (ins *ControlBuffer) Run(_sw *SenderWrapper) {
 
 func (ins *ControlBuffer) Kick() {
 	var kick bool
+	ins.mu.Lock()
 	if ins.state == TypeWorking && ins.consumerWaiting {
 		kick = true
 		ins.consumerWaiting = false
 	}
+	ins.mu.Unlock()
 	if kick {
 		select {
 		case ins.ch <- struct{}{}:
@@ -134,11 +135,7 @@ FLUSH:
 			w.WriteBytes32(data)
 		}
 
-		if ins.sw.Send(w) {
-			log.Println("sw send failed")
-		} else {
-			log.Println("sw send ...")
-		}
+		ins.sw.Send(w)
 	}
 
 	ins.consumerWaiting = true
