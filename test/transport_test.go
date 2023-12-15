@@ -34,6 +34,7 @@ func Test_Transport(t *testing.T) {
 			if err = stream.Send(in); err != nil {
 				log.Println("server response failed: ", err.Error())
 			}
+			in.Return()
 		}
 		return nil
 	})

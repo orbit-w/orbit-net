@@ -26,8 +26,12 @@ func NewServerStream(s *transport.Stream, _st transport.IServerTransport) *Serve
 	}
 }
 
-func (ss *ServerStream) Send(data packet.IPacket) error {
-	return ss.st.Write(ss.stream, data)
+func (ss *ServerStream) Send(pack packet.IPacket) error {
+	return ss.st.Write(ss.stream, pack)
+}
+
+func (ss *ServerStream) SendData(data []byte) error {
+	return ss.st.WriteData(ss.stream, data)
 }
 
 func (ss *ServerStream) Recv() (packet.IPacket, error) {

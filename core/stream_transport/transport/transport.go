@@ -12,13 +12,15 @@ import (
 */
 
 type IServerTransport interface {
-	Write(stream *Stream, data packet.IPacket) error
+	Write(stream *Stream, pack packet.IPacket) error
+	WriteData(stream *Stream, data []byte) (err error)
 	Close(reason string) error
 	CloseStream(streamId int64)
 }
 
 type IClientTransport interface {
-	Write(stream *Stream, data packet.IPacket, isLast bool) error
+	Write(stream *Stream, pack packet.IPacket, isLast bool) error
+	WriteData(s *Stream, data []byte, isLast bool) error
 	Close(reason string) error
 	NewStream(ctx context.Context, initialSize int) (*Stream, error)
 	CloseStream(streamId int64)

@@ -65,7 +65,9 @@ func NewTcpClient(_ops DialOption) IClientTransport {
 	return tc
 }
 
-func (tc *TcpClient) Write(s *Stream, data packet.IPacket, isLast bool) error {
+// Write TcpClient obj does not implicitly call IPacket.Return to return the
+// packet to the pool, and the user needs to explicitly call it.
+func (tc *TcpClient) Write(s *Stream, pack packet.IPacket, isLast bool) error {
 	switch {
 	case isLast:
 		if !s.compareAndSwapState(StreamActive, StreamWriteDone) {
@@ -74,10 +76,33 @@ func (tc *TcpClient) Write(s *Stream, data packet.IPacket, isLast bool) error {
 	case s.getState() != StreamActive:
 		return transport_err.ErrStreamDone
 	}
+	reader := packet.Reader(pack.Data())
 	frame := Frame{
 		Type:     FrameRaw,
 		StreamId: s.Id(),
-		Data:     data,
+		Data:     reader,
+		End:      isLast,
+	}
+	fp := tc.framer.Encode(&frame)
+	err := tc.buf.Set(fp)
+	fp.Return()
+	return err
+}
+
+func (tc *TcpClient) WriteData(s *Stream, data []byte, isLast bool) error {
+	switch {
+	case isLast:
+		if !s.compareAndSwapState(StreamActive, StreamWriteDone) {
+			return transport_err.ErrStreamDone
+		}
+	case s.getState() != StreamActive:
+		return transport_err.ErrStreamDone
+	}
+	reader := packet.Reader(data)
+	frame := Frame{
+		Type:     FrameRaw,
+		StreamId: s.Id(),
+		Data:     reader,
 		End:      isLast,
 	}
 	fp := tc.framer.Encode(&frame)

@@ -59,19 +59,34 @@ func NewTcpServer(ctx context.Context, _conn net.Conn, ops *ConnOption) *TcpServ
 	return ts
 }
 
-func (ts *TcpServer) Write(stream *Stream, data packet.IPacket) (err error) {
+// Write TcpServer obj does not implicitly call IPacket.Return to return the
+// packet to the pool, and the user needs to explicitly call it.
+func (ts *TcpServer) Write(stream *Stream, pack packet.IPacket) (err error) {
+	reader := packet.Reader(pack.Data())
 	fp := ts.framer.Encode(&Frame{
 		Type:     FrameReplyRaw,
 		StreamId: stream.Id(),
-		Data:     data,
+		Data:     reader,
 	})
 	err = ts.buf.Set(fp)
 	fp.Return()
 	return
 }
 
-// SendData 隐事调用 body.Return
-// 消息编码协议: size<int32> | gzipped<bool> | body<bytes>
+func (ts *TcpServer) WriteData(stream *Stream, data []byte) (err error) {
+	reader := packet.Reader(data)
+	fp := ts.framer.Encode(&Frame{
+		Type:     FrameReplyRaw,
+		StreamId: stream.Id(),
+		Data:     reader,
+	})
+	err = ts.buf.Set(fp)
+	fp.Return()
+	return
+}
+
+// SendData implicitly call body.Return
+// coding: size<int32> | gzipped<bool> | body<bytes>
 func (ts *TcpServer) SendData(body packet.IPacket) error {
 	pack := ts.codec.EncodeBody(body)
 	defer pack.Return()
@@ -113,7 +128,8 @@ func (ts *TcpServer) HandleLoop() {
 
 	defer func() {
 		if r := recover(); r != nil {
-			debug.PrintStack()
+			log.Println(r)
+			log.Println("stack: ", string(debug.Stack()))
 		}
 		ts.activeStreams.Close(func(stream *Stream) {
 			stream.OnClose()
@@ -210,6 +226,10 @@ func (ts *TcpServer) handleRawFrame(in *Frame) {
 
 func (ts *TcpServer) handleStartFrame(in *Frame) {
 	if ts.activeStreams.Exist(in.StreamId) {
+		if in.Data != nil {
+			in.Data.Return()
+			in.Data = nil
+		}
 		return
 	}
 

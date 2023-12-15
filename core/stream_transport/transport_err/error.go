@@ -28,6 +28,10 @@ func IsClosedConnError(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "closed")
 }
 
+func IsCancelError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "context canceled")
+}
+
 func ExceedMaxIncomingPacket(size uint32) error {
 	return errors.New(fmt.Sprintf("exceed max incoming packet size: %d", size))
 }

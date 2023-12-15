@@ -24,11 +24,18 @@ func (sc *StreamClient) Recv() (packet.IPacket, error) {
 	return sc.stream.Read()
 }
 
-func (sc *StreamClient) Send(data packet.IPacket) error {
+func (sc *StreamClient) Send(pack packet.IPacket) error {
+	if pack == nil {
+		return nil
+	}
+	return sc.ct.Write(sc.stream, pack, false)
+}
+
+func (sc *StreamClient) SendData(data []byte) error {
 	if data == nil {
 		return nil
 	}
-	return sc.ct.Write(sc.stream, data, false)
+	return sc.ct.WriteData(sc.stream, data, false)
 }
 
 func (sc *StreamClient) CloseSend() error {
