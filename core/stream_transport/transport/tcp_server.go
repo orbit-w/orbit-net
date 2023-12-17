@@ -148,18 +148,13 @@ func (ts *TcpServer) HandleLoop() {
 	}()
 
 	for {
-		select {
-		case <-ts.ctx.Done():
+		data, err = ts.codec.BlockDecode(ts.conn, header.Bytes, buffer.Bytes)
+		if err != nil {
 			return
-		default:
-			data, err = ts.codec.BlockDecode(ts.conn, header.Bytes, buffer.Bytes)
-			if err != nil {
-				return
-			}
-			if err = ts.OnData(data); err != nil {
-				//TODO: 错误处理？
-				return
-			}
+		}
+		if err = ts.OnData(data); err != nil {
+			//TODO: 错误处理？
+			return
 		}
 	}
 }

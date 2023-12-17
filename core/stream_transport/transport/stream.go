@@ -63,7 +63,7 @@ func (s *Stream) Read() (packet.IPacket, error) {
 		}
 		s.rb.load()
 		return msg.buf, nil
-	case <-s.ctx.Done():
+	case <-s.ctx.Done(): //TODO:
 		return nil, transport_err.ErrCancel
 	}
 }
