@@ -20,7 +20,6 @@ type Stream struct {
 	ts     *TcpServer
 	tc     *TcpClient
 	rb     *ReceiveBuf
-	recvCh <-chan StreamMsg
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -38,7 +37,6 @@ func NewStream(_id int64, initialSize int, f context.Context, _ts *TcpServer, _t
 		ts:     _ts,
 		tc:     _tc,
 		rb:     rb,
-		recvCh: rb.get(),
 		ctx:    ctx,
 		cancel: cancel,
 	}
@@ -54,7 +52,7 @@ func (s *Stream) write(msg StreamMsg) {
 
 func (s *Stream) Read() (packet.IPacket, error) {
 	select {
-	case msg, ok := <-s.recvCh:
+	case msg, ok := <-s.rb.get():
 		if !ok {
 			return nil, transport_err.ErrCancel
 		}

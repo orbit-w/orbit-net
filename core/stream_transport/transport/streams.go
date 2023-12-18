@@ -1,6 +1,9 @@
 package transport
 
-import "sync"
+import (
+	"go.uber.org/atomic"
+	"sync"
+)
 
 /*
    @Author: orbit-w
@@ -9,8 +12,9 @@ import "sync"
 */
 
 type Streams struct {
-	rw      sync.RWMutex
-	streams map[int64]*Stream
+	streamId atomic.Int64
+	rw       sync.RWMutex
+	streams  map[int64]*Stream
 }
 
 func NewStreams() *Streams {
@@ -18,6 +22,10 @@ func NewStreams() *Streams {
 		rw:      sync.RWMutex{},
 		streams: make(map[int64]*Stream, 1<<3),
 	}
+}
+
+func (ins *Streams) StreamId() int64 {
+	return ins.streamId.Add(1)
 }
 
 func (ins *Streams) Get(id int64) (*Stream, bool) {

@@ -25,7 +25,6 @@ type TcpClient struct {
 	mu            sync.Mutex
 	state         atomic.Uint32
 	lastAck       atomic.Int64
-	streamId      atomic.Int64
 	remoteAddr    string
 	remoteNodeId  string
 	currentNodeId string
@@ -76,7 +75,10 @@ func (tc *TcpClient) Write(s *Stream, pack packet.IPacket, isLast bool) error {
 	case s.getState() != StreamActive:
 		return transport_err.ErrStreamDone
 	}
-	reader := packet.Reader(pack.Data())
+	var reader packet.IPacket
+	if pack != nil && len(pack.Remain()) > 0 {
+		reader = packet.Reader(pack.Data())
+	}
 	frame := Frame{
 		Type:     FrameRaw,
 		StreamId: s.Id(),
@@ -119,7 +121,7 @@ func (tc *TcpClient) Close(reason string) error {
 }
 
 func (tc *TcpClient) NewStream(ctx context.Context, initialSize int) (*Stream, error) {
-	streamId := tc.getStreamId()
+	streamId := tc.streams.StreamId()
 	stream := NewStream(streamId, initialSize, tc.ctx, nil, tc)
 	md, _ := metadata.FromMetaContext(ctx)
 	data, err := metadata.Marshal(md)
@@ -216,7 +218,7 @@ func (tc *TcpClient) sendData(data packet.IPacket) error {
 func (tc *TcpClient) handleDisconnected() {
 	if tc.state.CompareAndSwap(StatusConnected, StatusDisconnected) {
 		tc.streams.Close(func(stream *Stream) {
-			stream.OnElegantlyClose()
+			stream.OnClose()
 		})
 	}
 }
@@ -379,10 +381,6 @@ func (tc *TcpClient) keepalive() {
 			return
 		}
 	}
-}
-
-func (tc *TcpClient) getStreamId() int64 {
-	return tc.streamId.Add(1)
 }
 
 func (tc *TcpClient) ack() {
